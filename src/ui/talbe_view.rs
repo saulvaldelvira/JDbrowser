@@ -4,6 +4,7 @@ use super::{
     SECONDARY_COLOR, TEXT_COLOR,
 };
 use crate::app::{self, App, Db};
+#[cfg(feature = "clipboard")]
 use arboard::Clipboard;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
@@ -125,9 +126,11 @@ pub struct TableView {
     pub data: (Vec<String>, Vec<Vec<String>>),
     pub table_state: TableState,
     table_scroll_height: u16,
+    #[cfg(feature = "clipboard")]
     clipboard: Option<Clipboard>,
 }
 
+#[cfg(feature = "clipboard")]
 fn init_clipboard() -> Option<Clipboard> {
     let disabled = std::env::var("DISABLE_CLIPBOARD")
                            .is_ok_and(|val| matches!(&*val, "1" | "true"));
@@ -152,6 +155,7 @@ impl Default for TableView {
             data: (Vec::default(), Vec::default()),
             table_state: TableState::default(),
             table_scroll_height: 0,
+            #[cfg(feature = "clipboard")]
             clipboard: init_clipboard(),
         }
     }
@@ -313,45 +317,63 @@ impl TableView {
         app: &mut App,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(db) = &app.current_db {
-            if key.code == KeyCode::Char('h') {
-                self.table_state.scroll_left_by(1);
-                return Ok(());
-            } else if key.code == KeyCode::Char('u') {
-                self.table_state.scroll_up_by(self.table_scroll_height);
-                return Ok(());
-            } else if key.code == KeyCode::Char('d') {
-                self.table_state.scroll_down_by(self.table_scroll_height);
-                return Ok(());
-            } else if key.code == KeyCode::Char('l') {
-                self.table_state.scroll_right_by(1);
-                return Ok(());
-            } else if key.code == KeyCode::Char('k') {
-                self.table_state.scroll_up_by(1);
-                return Ok(());
-            } else if key.code == KeyCode::Char('j') {
-                self.table_state.scroll_down_by(1);
-                return Ok(());
-            } else if key.code == KeyCode::Char('e') {
-                self.table_nav_tab = self.table_nav_tab.next();
-            } else if key.code == KeyCode::Char('q') {
-                self.table_nav_tab = self.table_nav_tab.previous();
-            } else if key.code == KeyCode::Char('L') {
-                self.selected_table_tab = self.selected_table_tab.next();
-            } else if key.code == KeyCode::Char('H') {
-                self.selected_table_tab = self.selected_table_tab.previous();
-            } else if key.code == KeyCode::Char('K') {
-                self.tables_list.list_state.select_previous();
-            } else if key.code == KeyCode::Char('J') {
-                self.tables_list.list_state.select_next();
-            } else if key.code == KeyCode::Char('y') {
-                self.yank_cell()?;
-                return Ok(());
+            match key.code {
+                KeyCode::Char('h') => {
+                    self.table_state.scroll_left_by(1);
+                    return Ok(());
+                },
+                KeyCode::Char('u') => {
+                    self.table_state.scroll_up_by(self.table_scroll_height);
+                    return Ok(());
+                },
+                KeyCode::Char('d') => {
+                    self.table_state.scroll_down_by(self.table_scroll_height);
+                    return Ok(());
+                },
+                KeyCode::Char('l') => {
+                    self.table_state.scroll_right_by(1);
+                    return Ok(());
+                },
+                KeyCode::Char('k') => {
+                    self.table_state.scroll_up_by(1);
+                    return Ok(());
+                },
+                KeyCode::Char('j') => {
+                    self.table_state.scroll_down_by(1);
+                    return Ok(());
+                },
+                KeyCode::Char('e') => {
+                    self.table_nav_tab = self.table_nav_tab.next();
+                },
+                KeyCode::Char('q') => {
+                    self.table_nav_tab = self.table_nav_tab.previous();
+                },
+                KeyCode::Char('L') => {
+                    self.selected_table_tab = self.selected_table_tab.next();
+                }
+                KeyCode::Char('H') => {
+                    self.selected_table_tab = self.selected_table_tab.previous();
+                }
+                KeyCode::Char('K') => {
+                    self.tables_list.list_state.select_previous();
+                }
+                KeyCode::Char('J') => {
+                    self.tables_list.list_state.select_next();
+                },
+                #[cfg(feature = "clipboard")]
+                KeyCode::Char('y') => {
+                    self.yank_cell()?;
+                    return Ok(());
+                }
+                _ => {}
             }
+
             self.load_table_data(app, db)?;
         }
         Ok(())
     }
 
+    #[cfg(feature = "clipboard")]
     fn yank_cell(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let Some(clipboard) = &mut self.clipboard else { return Ok(()) };
         if let Some((x, y)) = self.table_state.selected_cell() {

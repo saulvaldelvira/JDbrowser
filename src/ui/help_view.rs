@@ -22,7 +22,13 @@ const NAV_LIST_KEYS: [[&str; 2]; 3] = [
 ];
 
 const TABLE_VIEW_TITLE: &str = " Table View ";
-const TABLE_KEYS: [[&str; 2]; 8] = [
+
+#[cfg(not(feature = "clipboard"))]
+const TABLE_KEYS_LEN: usize = 7;
+#[cfg(feature = "clipboard")]
+const TABLE_KEYS_LEN: usize = 8;
+
+const TABLE_KEYS: [[&str; 2]; TABLE_KEYS_LEN] = [
     ["View Schema - Browse Data", "SHIFT + h - l"],
     ["Page Up Half", "u"],
     ["Page Down Half", "d"],
@@ -30,6 +36,7 @@ const TABLE_KEYS: [[&str; 2]; 8] = [
     ["Move Cell Down", "j"],
     ["Move Cell Left", "h"],
     ["Move Cell Right", "l"],
+    #[cfg(feature = "clipboard")]
     ["Yank Cell to Clipboard", "y"],
 ];
 
