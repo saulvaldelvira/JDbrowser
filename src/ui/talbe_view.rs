@@ -125,7 +125,21 @@ pub struct TableView {
     pub data: (Vec<String>, Vec<Vec<String>>),
     pub table_state: TableState,
     table_scroll_height: u16,
-    clipboard: Clipboard,
+    clipboard: Option<Clipboard>,
+}
+
+fn init_clipboard() -> Option<Clipboard> {
+    let disabled = std::env::var("DISABLE_CLIPBOARD")
+                           .is_ok_and(|val| matches!(&*val, "1" | "true"));
+    if disabled { return None }
+
+    match Clipboard::new() {
+        Ok(clip) => Some(clip),
+        Err(err) => {
+            eprintln!("INFO: Failed to initialize clipboard: {err}");
+            None
+        }
+    }
 }
 
 impl Default for TableView {
@@ -138,7 +152,7 @@ impl Default for TableView {
             data: (Vec::default(), Vec::default()),
             table_state: TableState::default(),
             table_scroll_height: 0,
-            clipboard: Clipboard::new().unwrap(),
+            clipboard: init_clipboard(),
         }
     }
 }
@@ -339,14 +353,16 @@ impl TableView {
     }
 
     fn yank_cell(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(if let Some((x, y)) = self.table_state.selected_cell() {
+        let Some(clipboard) = &mut self.clipboard else { return Ok(()) };
+        if let Some((x, y)) = self.table_state.selected_cell() {
             if let Some(row) = self.data.1.get(x) {
                 if let Some(val) = row.get(y) {
-                    self.clipboard.set_text(val)?;
+                    clipboard.set_text(val)?;
                     return Ok(());
                 }
             }
-        })
+        };
+        Ok(())
     }
 
     fn load_table_data(&mut self, app: &App, db: &Db) -> Result<(), Box<dyn std::error::Error>> {
